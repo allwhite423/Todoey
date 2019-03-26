@@ -11,16 +11,21 @@ import UIKit
 class ToDoListViewController: UITableViewController {
     // UITableViewController 상속받으면 따로 Table View 구성요소에 대한 IBOutlet 등을 추가하지 않아도 된다.
     
-    var itemArray = ["Study Algorithm", "Work Out", "Take a shower"]
+    var itemArray = [Item]()
     
     let defaults = UserDefaults.standard
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        if let items = defaults.array(forKey: "TodoListArray") as? [String] {
+        let newItem = Item()
+        newItem.title = "Study algorithm"
+        itemArray.append(newItem)
+        
+        if let items = defaults.array(forKey: "TodoListArray") as? [Item] {
             itemArray = items
         }
+        
         // Do any additional setup after loading the view, typically from a nib.
     }
     
@@ -30,7 +35,10 @@ class ToDoListViewController: UITableViewController {
     //1. cell 구성하는 내용(cellForRowAtIndexPath)
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
-        cell.textLabel?.text = itemArray[indexPath.row]
+        let item = itemArray[indexPath.row]
+        
+        cell.textLabel?.text = item.title
+        cell.accessoryType = item.done ? .checkmark : .none
         
         return cell
     }
@@ -45,15 +53,12 @@ class ToDoListViewController: UITableViewController {
     // TableView 의 cell 클릭시 실행되는 method
     // UITableViewContorller 는 UITableViewDelegate의 하위클래스
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print(itemArray[indexPath.row])
+//        print(itemArray[indexPath.row])
         
-        // 선택시 accessory - checkmark 추가, 다시 선택하면 checkmark 없애기
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        } else {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
+        // 선택되면 done 반대로 바꾸기
+        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
+        tableView.reloadData()
         //선택시 백그라운드 색이 회색이 되도록 하는 효과 없앰
         tableView.deselectRow(at: indexPath, animated: true)
     }
@@ -69,9 +74,13 @@ class ToDoListViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
             // what will happen onece the user clicks the Add Item button on our UIAlert
-            self.itemArray.append(textField.text ?? "New item") //default value를 넣음
+            let newItem = Item()
+            newItem.title = textField.text!
+            
+            self.itemArray.append(newItem) //default value를 넣음
             
             self.defaults.set(self.itemArray, forKey: "TodoListArray")
+            
             self.tableView.reloadData()
         }
         
@@ -81,8 +90,6 @@ class ToDoListViewController: UITableViewController {
             alertTextField.placeholder = "Create new item" //입력전에 보이는 문장
             textField = alertTextField
         }
-        
-        
         
         present(alert, animated: true, completion: nil)
     }
