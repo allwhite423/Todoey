@@ -11,7 +11,7 @@ import UIKit
 class ToDoListViewController: UITableViewController {
     // UITableViewController 상속받으면 따로 Table View 구성요소에 대한 IBOutlet 등을 추가하지 않아도 된다.
     
-    let itemArray = ["Study Algorithm", "Work Out", "Take a shower"]
+    var itemArray = ["Study Algorithm", "Work Out", "Take a shower"]
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -53,6 +53,33 @@ class ToDoListViewController: UITableViewController {
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
-
+    //MARK - Add New Items
+    
+    @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
+        // UIAlert , textfield
+        
+        let alert = UIAlertController(title: "Add New Todoey Item", message: "", preferredStyle: .alert)
+        
+        var textField = UITextField() //reference 용
+        
+        let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
+            // what will happen onece the user clicks the Add Item button on our UIAlert
+            self.itemArray.append(textField.text ?? "New item") //default value를 넣음
+            
+            self.tableView.reloadData()
+        }
+        
+        alert.addAction(action)
+        
+        alert.addTextField { (alertTextField) in //addTextField method가 실행될 때 실행되는 함수
+            alertTextField.placeholder = "Create new item" //입력전에 보이는 문장
+            textField = alertTextField
+        }
+        
+        
+        
+        present(alert, animated: true, completion: nil)
+    }
+    
 }
 
