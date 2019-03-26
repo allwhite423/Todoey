@@ -12,10 +12,15 @@ class ToDoListViewController: UITableViewController {
     // UITableViewController 상속받으면 따로 Table View 구성요소에 대한 IBOutlet 등을 추가하지 않아도 된다.
     
     var itemArray = ["Study Algorithm", "Work Out", "Take a shower"]
+    
+    let defaults = UserDefaults.standard
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        
+        if let items = defaults.array(forKey: "TodoListArray") as? [String] {
+            itemArray = items
+        }
         // Do any additional setup after loading the view, typically from a nib.
     }
     
@@ -66,6 +71,7 @@ class ToDoListViewController: UITableViewController {
             // what will happen onece the user clicks the Add Item button on our UIAlert
             self.itemArray.append(textField.text ?? "New item") //default value를 넣음
             
+            self.defaults.set(self.itemArray, forKey: "TodoListArray")
             self.tableView.reloadData()
         }
         
