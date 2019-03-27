@@ -7,24 +7,31 @@
 //
 
 import UIKit
+import CoreData
 
 class ToDoListViewController: UITableViewController {
     // UITableViewController 상속받으면 따로 Table View 구성요소에 대한 IBOutlet 등을 추가하지 않아도 된다.
     
-    var itemArray = [Item]()
+    @IBOutlet weak var searchBar: UISearchBar!
     
-    // custom plist 만들어서 관련 데이터 저장하기
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    var itemArray = [Item]()
+    var selectedCategory: Category? {
+        didSet { //해당 변수가 value가 세팅되면 실행되는 부분
+            loadItems()
+        }
+    }
+    
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        loadItems()
-        
-        // Do any additional setup after loading the view, typically from a nib.
+        searchBar.delegate = self
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
+
     }
     
-    //MARK - TableView Datasource Methods
+    //MARK: - TableView Datasource Methods
     // Datasource 관련 2개 메소드 - 1. cell 구성하는 내용(cellForRowAtIndexPath)  2. 몇개 row (numberOfRowsInSection)
     
     //1. cell 구성하는 내용(cellForRowAtIndexPath)
@@ -44,13 +51,14 @@ class ToDoListViewController: UITableViewController {
     }
     
     
-    //MARK - TableView Delegate Methods
+    //MARK: - TableView Delegate Methods
     // TableView 의 cell 클릭시 실행되는 method
     // UITableViewContorller 는 UITableViewDelegate의 하위클래스
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
 //        print(itemArray[indexPath.row])
         
         // 선택되면 done 반대로 바꾸기
+        // (같은 기능) itemArray[indexPath.row].setValue(!itemArray[indexPath.row].done, forKey: "done")
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
         saveItems()
@@ -58,7 +66,7 @@ class ToDoListViewController: UITableViewController {
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
-    //MARK - Add New Items
+    //MARK: - Add New Items
     
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         // UIAlert , textfield
@@ -69,9 +77,11 @@ class ToDoListViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
             // what will happen onece the user clicks the Add Item button on our UIAlert
-            let newItem = Item()
-            newItem.title = textField.text!
             
+            let newItem = Item(context: self.context)
+            newItem.title = textField.text!
+            newItem.done = false
+            newItem.parentCategory = self.selectedCategory
             self.itemArray.append(newItem) //default value를 넣음
             
             self.saveItems()
@@ -87,32 +97,57 @@ class ToDoListViewController: UITableViewController {
         present(alert, animated: true, completion: nil)
     }
     
-    //MARK - Model Manipulation Methods
+    //MARK: - Model Manipulation Methods
     
     func saveItems() {
-        let encoder = PropertyListEncoder()
         
         do {
-            let data = try encoder.encode(itemArray)
-            try data.write(to: dataFilePath!)
+            try context.save() //commit 역할
         } catch {
-            print("Error encoding item array, \(error)")
+            print("Error saving data \(error)")
         }
         
         tableView.reloadData()
     }
     
-    func loadItems() {
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            
-            do {
-                itemArray = try decoder.decode([Item].self, from: data)
-            } catch {
-                print("Error Decoding \(error)")
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
+        
+        if let addtionalPredicate = predicate {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, addtionalPredicate])
+        } else {
+            request.predicate = categoryPredicate
+        }
+        
+        do {
+            itemArray = try context.fetch(request)
+        } catch {
+            print("Error fetching data from context \(error)")
+        }
+        
+        tableView.reloadData()
+    }
+    
+    
+}
+
+extension ToDoListViewController: UISearchBarDelegate {
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) { //검색 버튼 눌렀을 때
+        let searchPredicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        let request: NSFetchRequest<Item> = Item.fetchRequest()
+        
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        loadItems(with: request, predicate: searchPredicate)
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            loadItems() // load all items
+            DispatchQueue.main.async { // main queue 에서 실행되야 하는 것.
+                searchBar.resignFirstResponder() //to get rid of keyboard, no longer have the ccursor
             }
-            
         }
     }
 }
-
