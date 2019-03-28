@@ -8,8 +8,9 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class ToDoListViewController: UITableViewController {
+class ToDoListViewController: SwipeTableViewController {
     // UITableViewController 상속받으면 따로 Table View 구성요소에 대한 IBOutlet 등을 추가하지 않아도 된다.
     
     @IBOutlet weak var searchBar: UISearchBar!
@@ -27,7 +28,9 @@ class ToDoListViewController: UITableViewController {
         super.viewDidLoad()
         
         searchBar.delegate = self
-        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
+        tableView.rowHeight = 80.0
+        tableView.separatorStyle = .none
+//        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
 
     }
     
@@ -36,11 +39,18 @@ class ToDoListViewController: UITableViewController {
     
     //1. cell 구성하는 내용(cellForRowAtIndexPath)
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = todoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
             cell.accessoryType = item.done ? .checkmark : .none
+            
+            let parentColor = UIColor(hexString: selectedCategory!.backgroundColor)
+            if let color = parentColor?.darken(byPercentage: CGFloat(indexPath.row)/CGFloat(todoItems!.count)) {
+                cell.backgroundColor = color
+                cell.textLabel?.textColor = ContrastColorOf(color, returnFlat: true)
+            }
+            
         } else {
             cell.textLabel?.text = "No items added"
         }
@@ -93,6 +103,7 @@ class ToDoListViewController: UITableViewController {
                         let newItem = Item()
                         newItem.title = textField.text!
                         newItem.dateCreated = Date()
+                        
                         currentCategory.items.append(newItem)
                     }
                 } catch {
@@ -115,30 +126,29 @@ class ToDoListViewController: UITableViewController {
     
     //MARK: - Model Manipulation Methods
     
-//    func savetodoItems() {
-//
-//        do {
-//            try context.save() //commit 역할
-//        } catch {
-//            print("Error saving data \(error)")
-//        }
-//
-//        tableView.reloadData()
-//    }
-    
     func loadtodoItems() {
-        todoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
+        todoItems = selectedCategory?.items.sorted(byKeyPath: "dateCreated", ascending: false)
         
         tableView.reloadData()
     }
     
-    
+    override func updateModel(at indexPath: IndexPath) {
+        if let seletedItem = todoItems?[indexPath.row] {
+            do {
+                try realm.write {
+                    realm.delete(seletedItem)
+                }
+            } catch {
+                print("Error deleting item, \(error)")
+            }
+        }
+    }
 }
 
 extension ToDoListViewController: UISearchBarDelegate {
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) { //검색 버튼 눌렀을 때
-        todoItems = todoItems?.filter("title CONTAINS[cd] %@", searchBar.text!).sorted(byKeyPath: "dateCreated", ascending: false)
+        todoItems = todoItems?.filter("title CONTAINS[cd] %@", searchBar.text!).sorted(byKeyPath: "title", ascending: true)
         
         tableView.reloadData()
     }
